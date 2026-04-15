@@ -4159,6 +4159,28 @@ decode QUADRANT default Unknown::unknown() {
                             Vd_vu[i] = fd.v;
                         }}, OPFVV, SimdMiscOp);
                     }
+                    format VectorFloatFormat {
+                        0x08: vcfpyl_v({{
+                            uint32_t base = i & ~1;
+                            auto real = ftype<et>(Vs2_vu[base]);
+                            auto imag = ftype<et>(Vs2_vu[base+1]);
+                            if (i % 2 == 0) {
+                                Vd_vu[i] = imag.v;
+                            } else {
+                                Vd_vu[i] = fneg<et>(real).v;
+                            }
+                        }}, OPFVV, SimdFloatMultOp);
+                        0x09: vcfpyu_v({{
+                            uint32_t base = i & ~1;
+                            auto real = ftype<et>(Vs2_vu[base]);
+                            auto imag = ftype<et>(Vs2_vu[base+1]);
+                            if (i % 2 == 0) {
+                                Vd_vu[i] = fneg<et>(imag).v;
+                            } else {
+                                Vd_vu[i] = real.v;
+                            }
+                        }}, OPFVV, SimdFloatMultOp);
+                    }
                 }
 
                 format VectorFloatMaskFormat {
@@ -4320,6 +4342,108 @@ decode QUADRANT default Unknown::unknown() {
                             ftype<ewt>(Vs3_vwu[i]));
                         Vd_vwu[i] = fd.v;
                     }}, OPFVV, SimdFloatMultAccOp);
+                }
+                format VectorFloatFormat {
+                    0x25: vcfmul_vv({{
+                        uint32_t base = i & ~1;
+                        auto vs2_r = ftype<et>(Vs2_vu[base]);
+                        auto vs2_i = ftype<et>(Vs2_vu[base+1]);
+                        auto vs1_r = ftype<et>(Vs1_vu[base]);
+                        auto vs1_i = ftype<et>(Vs1_vu[base+1]);
+                        if (i % 2 == 0) {
+                            Vd_vu[i] = fsub<et>(fmul<et>(vs2_r, vs1_r), fmul<et>(vs2_i, vs1_i)).v;
+                        } else {
+                            Vd_vu[i] = fadd<et>(fmul<et>(vs2_r, vs1_i), fmul<et>(vs2_i, vs1_r)).v;
+                        }
+                    }}, OPFVV, SimdComplexMultOp);
+                    0x22: vcfdiv_vv({{
+                        uint32_t base = i & ~1;
+                        auto a = ftype<et>(Vs2_vu[base]);
+                        auto b = ftype<et>(Vs2_vu[base+1]);
+                        auto c = ftype<et>(Vs1_vu[base]);
+                        auto d = ftype<et>(Vs1_vu[base+1]);
+                        auto denom = fadd<et>(fmul<et>(c, c), fmul<et>(d, d));
+                        if (i % 2 == 0) {
+                            Vd_vu[i] = fdiv<et>(fadd<et>(fmul<et>(a, c), fmul<et>(b, d)), denom).v;
+                        } else {
+                            Vd_vu[i] = fdiv<et>(fsub<et>(fmul<et>(b, c), fmul<et>(a, d)), denom).v;
+                        }
+                    }}, OPFVV, SimdComplexDivOp);
+                    0x26: vcfmadd_vv({{
+                        uint32_t base = i & ~1;
+                        auto vd_r = ftype<et>(Vs3_vu[base]);
+                        auto vd_i = ftype<et>(Vs3_vu[base+1]);
+                        auto vs1_r = ftype<et>(Vs1_vu[base]);
+                        auto vs1_i = ftype<et>(Vs1_vu[base+1]);
+                        auto vs2_r = ftype<et>(Vs2_vu[base]);
+                        auto vs2_i = ftype<et>(Vs2_vu[base+1]);
+                        if (i % 2 == 0) {
+                            // (vd_r + i*vd_i)*(vs1_r + i*vs1_i) + (vs2_r + i*vs2_i)
+                            Vd_vu[i] = fadd<et>(vs2_r, fsub<et>(fmul<et>(vd_r, vs1_r), fmul<et>(vd_i, vs1_i))).v;
+                        } else {
+                            Vd_vu[i] = fadd<et>(vs2_i, fadd<et>(fmul<et>(vd_r, vs1_i), fmul<et>(vd_i, vs1_r))).v;
+                        }
+                    }}, OPFVV, SimdComplexMultAccOp);
+                    0x37: vcfmacc_vv({{
+                        uint32_t base = i & ~1;
+                        auto vs1_r = ftype<et>(Vs1_vu[base]);
+                        auto vs1_i = ftype<et>(Vs1_vu[base+1]);
+                        auto vs2_r = ftype<et>(Vs2_vu[base]);
+                        auto vs2_i = ftype<et>(Vs2_vu[base+1]);
+                        auto vd_r = ftype<et>(Vs3_vu[base]);
+                        auto vd_i = ftype<et>(Vs3_vu[base+1]);
+                        if (i % 2 == 0) {
+                            Vd_vu[i] = fadd<et>(vd_r, fsub<et>(fmul<et>(vs1_r, vs2_r), fmul<et>(vs1_i, vs2_i))).v;
+                        } else {
+                            Vd_vu[i] = fadd<et>(vd_i, fadd<et>(fmul<et>(vs1_r, vs2_i), fmul<et>(vs1_i, vs2_r))).v;
+                        }
+                    }}, OPFVV, SimdComplexMultAccOp);
+                    0x39: vcfmsac_vv({{
+                        uint32_t base = i & ~1;
+                        auto vs1_r = ftype<et>(Vs1_vu[base]);
+                        auto vs1_i = ftype<et>(Vs1_vu[base+1]);
+                        auto vs2_r = ftype<et>(Vs2_vu[base]);
+                        auto vs2_i = ftype<et>(Vs2_vu[base+1]);
+                        auto vd_r = ftype<et>(Vs3_vu[base]);
+                        auto vd_i = ftype<et>(Vs3_vu[base+1]);
+                        if (i % 2 == 0) {
+                            Vd_vu[i] = fsub<et>(fsub<et>(fmul<et>(vs1_r, vs2_r), fmul<et>(vs1_i, vs2_i)), vd_r).v;
+                        } else {
+                            Vd_vu[i] = fsub<et>(fadd<et>(fmul<et>(vs1_r, vs2_i), fmul<et>(vs1_i, vs2_r)), vd_i).v;
+                        }
+                    }}, OPFVV, SimdComplexMultAccOp);
+                    0x3A: vcfmaccpyl_vv({{
+                        uint32_t base = i & ~1;
+                        auto vs1_r = ftype<et>(Vs1_vu[base]);
+                        auto vs1_i = ftype<et>(Vs1_vu[base+1]);
+                        auto vs2_r = ftype<et>(Vs2_vu[base]);
+                        auto vs2_i = ftype<et>(Vs2_vu[base+1]);
+                        auto vd_r = ftype<et>(Vs3_vu[base]);
+                        auto vd_i = ftype<et>(Vs3_vu[base+1]);
+                        auto res_r = fadd<et>(vd_r, fsub<et>(fmul<et>(vs1_r, vs2_r), fmul<et>(vs1_i, vs2_i)));
+                        auto res_i = fadd<et>(vd_i, fadd<et>(fmul<et>(vs1_r, vs2_i), fmul<et>(vs1_i, vs2_r)));
+                        if (i % 2 == 0) {
+                            Vd_vu[i] = res_i.v;
+                        } else {
+                            Vd_vu[i] = fneg<et>(res_r).v;
+                        }
+                    }}, OPFVV, SimdComplexMultAccOp);
+                    0x3B: vcfmaccpyu_vv({{
+                        uint32_t base = i & ~1;
+                        auto vs1_r = ftype<et>(Vs1_vu[base]);
+                        auto vs1_i = ftype<et>(Vs1_vu[base+1]);
+                        auto vs2_r = ftype<et>(Vs2_vu[base]);
+                        auto vs2_i = ftype<et>(Vs2_vu[base+1]);
+                        auto vd_r = ftype<et>(Vs3_vu[base]);
+                        auto vd_i = ftype<et>(Vs3_vu[base+1]);
+                        auto res_r = fadd<et>(vd_r, fsub<et>(fmul<et>(vs1_r, vs2_r), fmul<et>(vs1_i, vs2_i)));
+                        auto res_i = fadd<et>(vd_i, fadd<et>(fmul<et>(vs1_r, vs2_i), fmul<et>(vs1_i, vs2_r)));
+                        if (i % 2 == 0) {
+                            Vd_vu[i] = fneg<et>(res_i).v;
+                        } else {
+                            Vd_vu[i] = res_r.v;
+                        }
+                    }}, OPFVV, SimdComplexMultAccOp);
                 }
             }
             // OPMVV
@@ -5700,6 +5824,91 @@ decode QUADRANT default Unknown::unknown() {
                             ftype<ewt>(Vs3_vwu[i]));
                         Vd_vwu[i] = fd.v;
                     }}, OPFVF, SimdFloatMultAccOp);
+                }
+                format VectorFloatFormat {
+                    0x25: vcfmul_vf({{
+                        uint32_t base = i & ~1;
+                        auto vs2_r = ftype<et>(Vs2_vu[base]);
+                        auto vs2_i = ftype<et>(Vs2_vu[base+1]);
+                        auto rs1 = ftype_freg<et>(freg(Fs1_bits));
+                        Vd_vu[i] = fmul<et>((i % 2 == 0) ? vs2_r : vs2_i, rs1).v;
+                    }}, OPFVF, SimdComplexMultOp);
+                    0x22: vcfdiv_vf({{
+                        uint32_t base = i & ~1;
+                        auto vs2_r = ftype<et>(Vs2_vu[base]);
+                        auto vs2_i = ftype<et>(Vs2_vu[base+1]);
+                        auto rs1 = ftype_freg<et>(freg(Fs1_bits));
+                        Vd_vu[i] = fdiv<et>((i % 2 == 0) ? vs2_r : vs2_i, rs1).v;
+                    }}, OPFVF, SimdComplexDivOp);
+                    0x26: vcfmadd_vf({{
+                        uint32_t base = i & ~1;
+                        auto vd_r = ftype<et>(Vs3_vu[base]);
+                        auto vd_i = ftype<et>(Vs3_vu[base+1]);
+                        auto vs1_r = ftype_freg<et>(freg(Fs1_bits));
+                        auto vs2_r = ftype<et>(Vs2_vu[base]);
+                        auto vs2_i = ftype<et>(Vs2_vu[base+1]);
+                        if (i % 2 == 0) {
+                            Vd_vu[i] = fadd<et>(vs2_r, fmul<et>(vd_r, vs1_r)).v;
+                        } else {
+                            Vd_vu[i] = fadd<et>(vs2_i, fmul<et>(vd_i, vs1_r)).v;
+                        }
+                    }}, OPFVF, SimdComplexMultAccOp);
+                    0x37: vcfmacc_vf({{
+                        uint32_t base = i & ~1;
+                        auto rs1 = ftype_freg<et>(freg(Fs1_bits));
+                        auto vs2_r = ftype<et>(Vs2_vu[base]);
+                        auto vs2_i = ftype<et>(Vs2_vu[base+1]);
+                        auto vd_r = ftype<et>(Vs3_vu[base]);
+                        auto vd_i = ftype<et>(Vs3_vu[base+1]);
+                        if (i % 2 == 0) {
+                            Vd_vu[i] = fadd<et>(vd_r, fmul<et>(rs1, vs2_r)).v;
+                        } else {
+                            Vd_vu[i] = fadd<et>(vd_i, fmul<et>(rs1, vs2_i)).v;
+                        }
+                    }}, OPFVF, SimdComplexMultAccOp);
+                    0x39: vcfmsac_vf({{
+                        uint32_t base = i & ~1;
+                        auto rs1 = ftype_freg<et>(freg(Fs1_bits));
+                        auto vs2_r = ftype<et>(Vs2_vu[base]);
+                        auto vs2_i = ftype<et>(Vs2_vu[base+1]);
+                        auto vd_r = ftype<et>(Vs3_vu[base]);
+                        auto vd_i = ftype<et>(Vs3_vu[base+1]);
+                        if (i % 2 == 0) {
+                            Vd_vu[i] = fsub<et>(fmul<et>(rs1, vs2_r), vd_r).v;
+                        } else {
+                            Vd_vu[i] = fsub<et>(fmul<et>(rs1, vs2_i), vd_i).v;
+                        }
+                    }}, OPFVF, SimdComplexMultAccOp);
+                    0x3A: vcfmaccpyl_vf({{
+                        uint32_t base = i & ~1;
+                        auto rs1 = ftype_freg<et>(freg(Fs1_bits));
+                        auto vs2_r = ftype<et>(Vs2_vu[base]);
+                        auto vs2_i = ftype<et>(Vs2_vu[base+1]);
+                        auto vd_r = ftype<et>(Vs3_vu[base]);
+                        auto vd_i = ftype<et>(Vs3_vu[base+1]);
+                        auto res_r = fadd<et>(vd_r, fmul<et>(rs1, vs2_r));
+                        auto res_i = fadd<et>(vd_i, fmul<et>(rs1, vs2_i));
+                        if (i % 2 == 0) {
+                            Vd_vu[i] = res_i.v;
+                        } else {
+                            Vd_vu[i] = fneg<et>(res_r).v;
+                        }
+                    }}, OPFVF, SimdComplexMultAccOp);
+                    0x3B: vcfmaccpyu_vf({{
+                        uint32_t base = i & ~1;
+                        auto rs1 = ftype_freg<et>(freg(Fs1_bits));
+                        auto vs2_r = ftype<et>(Vs2_vu[base]);
+                        auto vs2_i = ftype<et>(Vs2_vu[base+1]);
+                        auto vd_r = ftype<et>(Vs3_vu[base]);
+                        auto vd_i = ftype<et>(Vs3_vu[base+1]);
+                        auto res_r = fadd<et>(vd_r, fmul<et>(rs1, vs2_r));
+                        auto res_i = fadd<et>(vd_i, fmul<et>(rs1, vs2_i));
+                        if (i % 2 == 0) {
+                            Vd_vu[i] = fneg<et>(res_i).v;
+                        } else {
+                            Vd_vu[i] = res_r.v;
+                        }
+                    }}, OPFVF, SimdComplexMultAccOp);
                 }
             }
             // OPMVX
