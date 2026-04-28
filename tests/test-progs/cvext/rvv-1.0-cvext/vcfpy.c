@@ -20,13 +20,13 @@ main()
 
     __asm__ volatile("li a0, 8\n"
                      "vsetvli a0, a0, e64, m1\n"
-                     "vle64.v v1, (%2)\n"
+                     "vle64.v v1, (%0)\n"
                      "vcfpyl.v v2, v1\n"
-                     "vse64.v v2, (%0)\n"
+                     "vse64.v v2, (%1)\n"
                      "vcfpyu.v v3, v1\n"
-                     "vse64.v v3, (%1)\n"
-                     :
-                     : "r"(vd_pyl), "r"(vd_pyu), "r"(vs2)
+                     "vse64.v v3, (%2)\n"
+                     : 
+                     : "r"(vs2), "r"(vd_pyl), "r"(vd_pyu)
                      : "a0", "v1", "v2", "v3", "memory");
 
     printf("vcfpyl.v and vcfpyu.v Test:\n");

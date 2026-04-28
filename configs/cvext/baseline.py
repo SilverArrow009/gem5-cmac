@@ -70,7 +70,6 @@ class FixedMinorDefaultMemFU(MinorDefaultMemFU):
 class FixedMinorDefaultFUPool(MinorFUPool):
     funcUnits = [
         MinorDefaultIntFU(),
-        MinorDefaultIntFU(),
         MinorDefaultIntMulFU(),
         MinorDefaultIntDivFU(),
         MinorDefaultFloatSimdFU(),

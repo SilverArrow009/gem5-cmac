@@ -19,8 +19,8 @@ main()
     for (int i = 0; i < 4; i++) {
         double d_r = vs3[i * 2], d_i = vs3[i * 2 + 1];
         double s2_r = vs2[i * 2], s2_i = vs2[i * 2 + 1];
-        expected[i * 2] = d_r - rs1 * s2_r;
-        expected[i * 2 + 1] = d_i - rs1 * s2_i;
+        expected[i * 2] = rs1 * s2_r - d_r;
+        expected[i * 2 + 1] = rs1 * s2_i - d_i;
     }
 
     __asm__ volatile("fld f1, (%1)\n"
