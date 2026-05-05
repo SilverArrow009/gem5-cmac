@@ -33,7 +33,8 @@ main()
             C_ref[i * N * 2 + j * 2 + 1] = c_i;
         }
     }
-    __asm__ volatile("li a0, 8\n"
+    __asm__ volatile(
+                     "li a0, 8\n"
                      "vsetvli zero, a0, e64, m1\n"
                      "vid.v v1\n"
                      "vand.vi v1, v1, 1\n"
@@ -66,7 +67,7 @@ main()
                      : [A] "r"(A), [B] "r"(B), [C] "r"(C), [n] "i"(N)
                      : "a0", "a1", "a2", "a3", "a4", "a5", "a6", "t0", "v0", "v1", "v2", "v3", "f0", "f1", "memory");
 
-    printf("4x4 Complex Matrix Multiplication using vcfmacc.vv:\n");
+    printf("%dx%d Complex Matrix Multiplication using vcfmacc.vv:\n", N, N);
     printf("Expected C:\n");
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {

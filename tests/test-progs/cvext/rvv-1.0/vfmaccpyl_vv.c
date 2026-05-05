@@ -42,6 +42,10 @@ main()
                      // PYL swap: (v14, v15) -> (v15, -v14)
                      "vfneg.v v16, v14\n"
                      "vsseg2e64.v v15, (%0)\n"
+                     // Note that because we must commit the result to memory, the
+                     // speedup doesn't seem huge. However, main advantage of a
+                     // dedicated instruction is that it enables us to retain the result
+                     // in the register itself (saves us a load next time)
                      :
                      : "r"(vd), "r"(vs1), "r"(vs2), "r"(vs3)
                      : "a0", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "memory");

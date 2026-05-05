@@ -21,7 +21,6 @@ main()
                      "vsetvli a0, a0, e64, m1\n"
                      "vle64.v v1, (%1)\n"
                      "vle64.v v2, (%2)\n"
-                     "vle64.v v3, (%0)\n"
                      "vcfmul.vv v3, v1, v2\n"
                      "vse64.v v3, (%0)\n"
                      :

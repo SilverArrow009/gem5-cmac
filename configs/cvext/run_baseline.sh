@@ -11,7 +11,7 @@ mkdir -p $OUT_BASE
 
 # List of kernels to run
 KERNELS=("vfmul_vv" "vfmul_vf" "vfdiv_vv" "vfdiv_vf" "vfmadd_vv" "vfmadd_vf" "vfmacc_vv" "vfmacc_vf" "vfmsac_vv" "vfmsac_vf" "vfmaccpyl_vv" "vfmaccpyl_vf" "vfmaccpyu_vv" "vfmaccpyu_vf" "vfpy" "matrix_mult")
-# KERNELS=("vfmul_vv")
+# KERNELS=("matrix_mult")
 
 for kernel in "${KERNELS[@]}"; do
     if [ -f "$KERNEL_DIR/$kernel" ]; then

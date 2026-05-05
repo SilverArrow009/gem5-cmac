@@ -34,6 +34,10 @@ main()
                      "vle64.v v2, (%2)\n"
                      "vcfmaccpyl.vv v3, v1, v2\n"
                      "vse64.v v3, (%0)\n"
+                     // Note that because we must commit the result to memory, the
+                     // speedup doesn't seem huge. However, main advantage of a
+                     // dedicated instruction is that it enables us to retain the result
+                     // in the register itself (saves us a load next time)
                      :
                      : "r"(vd), "r"(vs1), "r"(vs2), "r"(vs3)
                      : "a0", "v1", "v2", "v3", "memory");
