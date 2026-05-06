@@ -244,7 +244,7 @@ class HeterogeneousCore(BaseCPUCore):
         self.core.isa[0].elen = 64
 
 
-def run_simulation(binary_path):
+def run_simulation(binary_path, binary_opts):
     cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
         l1d_size="32KiB", l1i_size="32KiB", l2_size="512KiB"
     )
@@ -253,14 +253,24 @@ def run_simulation(binary_path):
     board = SimpleBoard(
         clk_freq="1GHz", processor=processor, memory=memory, cache_hierarchy=cache_hierarchy,
     )
-    board.set_se_binary_workload(BinaryResource(local_path=binary_path))
+    if binary_opts is not None:
+      board.set_se_binary_workload(BinaryResource(local_path=binary_path), arguments=binary_opts)
+    else:
+      board.set_se_binary_workload(BinaryResource(local_path=binary_path))
     simulator = Simulator(board=board)
     print("Beginning simulation with CVA6 + Ara baseline model!")
     simulator.run()
 
 
-if __name__ in ("__main__", "__m5_main__"):
+if __name__ in ("__m5_main__"):
     parser = argparse.ArgumentParser()
     parser.add_argument("binary", type=str, help="Path to the binary to run")
+    parser.add_argument("--bin-args", type=str, help="Arguments to the binary to run")
+    # Split the space separated string into a list
     args = parser.parse_args()
-    run_simulation(args.binary)
+    # Differentiate whether the arguments to the binary have been passed
+    if args.bin_args is not None:
+      bin_opts = args.bin_args.split()
+    else:
+      bin_opts = None
+    run_simulation(args.binary, bin_opts)
