@@ -1,68 +1,58 @@
-#include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include "../common.h"
 
-int
-main()
-{
-    double rs1 = 2.0;
-    double vs3[8] __attribute__((aligned(64))) = {1.0, 2.0, 3.0, 4.0,
-                                                  5.0, 6.0, 7.0, 8.0};
-    double vs2[8] __attribute__((aligned(64))) = {1.0, 0.0, 2.0, 0.0,
-                                                  3.0, 0.0, 4.0, 0.0};
-    double vd[8];
-    double expected[8];
+int main() {
+    printf("vfmadd.vf (complex) Test | VLEN=%d, ELEN=%d\n", VLEN, ELEN);
+    T fs1 = 1.5;
+    T vs2[N_ELE] __attribute__((aligned(64)));
+    T vd[N_ELE] __attribute__((aligned(64)));
+    T expected[N_ELE];
 
-    for (int i = 0; i < 8; i++) {
-        vd[i] = vs3[i];
+    for (int i = 0; i < N_ELE / 2; i++) {
+        vs2[2 * i] = (T)i + 2.0;     // re2
+        vs2[2 * i + 1] = (T)1.0;     // im2
+        vd[2 * i] = (T)i + 3.0;      // re_d
+        vd[2 * i + 1] = (T)1.5;      // im_d
+
+        T re2 = vs2[2 * i], im2 = vs2[2 * i + 1];
+        T red = vd[2 * i], imd = vd[2 * i + 1];
+
+        expected[2 * i] = fs1 * red + re2;
+        expected[2 * i + 1] = fs1 * imd + im2;
     }
 
-    for (int i = 0; i < 4; i++) {
-        double vd_r = vs3[i * 2], vd_i = vs3[i * 2 + 1];
-        expected[i * 2] = vs2[i * 2] + vd_r * rs1;
-        expected[i * 2 + 1] = vs2[i * 2 + 1] + vd_i * rs1;
-    }
-
-    __asm__ volatile("fld f1, (%1)\n"
-                     "li a0, 4\n"
-                     "vsetvli a0, a0, e64, m1\n"
-                     "vlseg2e64.v v2, (%2)\n" // v2=s2_r, v3=s2_i
-                     "vlseg2e64.v v4, (%3)\n" // v4=vd_r, v5=vd_i
-                     "vfmadd.vf v4, f1, v2\n"
-                     "vfmadd.vf v5, f1, v3\n"
-                     "vsseg2e64.v v4, (%0)\n"
-                     :
-                     : "r"(vd), "r"(&rs1), "r"(vs2), "r"(vs3)
-                     : "a0", "v2", "v3", "v4", "v5", "f1");
-
-    printf("vmadd.vf (complex) Test:\n");
-    printf("Input rs1: %.2f\n", rs1);
-    printf("Input vs2: ");
-    for (int i = 0; i < 8; i++) {
-        printf("%.2f ", vs2[i]);
-    }
-    printf("\n");
-    printf("Input vd:  ");
-    for (int i = 0; i < 8; i++) {
-        printf("%.2f ", vs3[i]);
-    }
-    printf("\n");
-    printf("Expected:  ");
-    for (int i = 0; i < 8; i++) {
-        printf("%.2f ", expected[i]);
-    }
-    printf("\n");
-    printf("Got:       ");
-    for (int i = 0; i < 8; i++) {
-        printf("%.2f ", vd[i]);
-    }
-    printf("\n");
+    __asm__ volatile(
+        LD_INS " f1, 0(%1)\n"
+        "li a0, %2\n"
+        "vsetvli t0, a0, " VSET_E ", m1, ta, ma\n"
+        VLD2_INS " v0, (%0)\n"  // vd: v0=re_d, v1=im_d
+        VLD2_INS " v4, (%3)\n"  // vs2: v4=re2, v5=im2
+        "vfmadd.vf v0, f1, v4\n" // v0 = re_f*re_d + re2
+        "vfmadd.vf v1, f1, v5\n" // v1 = re_f*im_d + im2
+        VST2_INS " v0, (%0)\n"
+        :
+        : "r"(vd), "r"(&fs1), "i"(N_ELE / 2), "r"(vs2)
+        : "t0", "a0", "v0", "v1", "v4", "v5", "f1"
+    );
 
     int pass = 1;
-    for (int i = 0; i < 8; i++) {
-        if (fabs(vd[i] - expected[i]) > 1e-6) {
+    for (int i = 0; i < N_ELE; i++) {
+        if (fabs((double)vd[i] - (double)expected[i]) > 1e-3) {
             pass = 0;
+            break;
         }
     }
+
     printf("Result: %s\n", pass ? "PASS" : "FAIL");
+    if (!pass) {
+        for (int i = 0; i < N_ELE / 2; i++) {
+            printf("Pair %d: Expected (%.4f, %.4f), Got (%.4f, %.4f)\n",
+                   i, (double)expected[2*i], (double)expected[2*i+1],
+                   (double)vd[2*i], (double)vd[2*i+1]);
+        }
+    }
+
     return pass ? 0 : 1;
 }

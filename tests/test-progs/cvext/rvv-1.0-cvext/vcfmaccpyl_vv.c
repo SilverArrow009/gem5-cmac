@@ -1,78 +1,49 @@
-#include <math.h>
 #include <stdio.h>
+#include "../common.h"
 
 int
 main()
 {
-    double vs3[8] __attribute__((aligned(64))) = {1.0, 1.0, 2.0, 2.0,
-                                                  3.0, 3.0, 4.0, 4.0};
-    double vs1[8] __attribute__((aligned(64))) = {2.0, 3.0, 4.0, 5.0,
-                                                  6.0, 7.0, 8.0, 9.0};
-    double vs2[8] __attribute__((aligned(64))) = {1.0, 0.0, 2.0, 0.0,
-                                                  3.0, 0.0, 4.0, 0.0};
-    double vd[8];
-    double expected[8];
+    T vs1[N_ELE] __attribute__((aligned(64)));
+    T vs2[N_ELE] __attribute__((aligned(64)));
+    T vs3[N_ELE] __attribute__((aligned(64)));
+    T vd[N_ELE] __attribute__((aligned(64)));
+    T expected[N_ELE];
 
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < N_ELE; i++) {
+        vs1[i] = (T)(i + 1.0);
+        vs2[i] = (T)(i + 0.5);
+        vs3[i] = (T)(i + 2.0);
         vd[i] = vs3[i];
     }
 
-    for (int i = 0; i < 4; i++) {
-        double s1_r = vs1[i * 2], s1_i = vs1[i * 2 + 1];
-        double s2_r = vs2[i * 2], s2_i = vs2[i * 2 + 1];
-        double d_r = vs3[i * 2], d_i = vs3[i * 2 + 1];
-        double res_r = d_r + s1_r * s2_r - s1_i * s2_i;
-        double res_i = d_i + s1_r * s2_i + s1_i * s2_r;
-        expected[i * 2] = res_i;
-        expected[i * 2 + 1] = -res_r;
+    for (int i = 0; i < N_ELE / 2; i++) {
+        double s1_r = (double)vs1[i * 2], s1_i = (double)vs1[i * 2 + 1];
+        double s2_r = (double)vs2[i * 2], s2_i = (double)vs2[i * 2 + 1];
+        double d_r = (double)vs3[i * 2], d_i = (double)vs3[i * 2 + 1];
+        double res_r = s1_r * s2_r - s1_i * s2_i + d_r;
+        double res_i = s1_r * s2_i + s1_i * s2_r + d_i;
+        expected[i * 2] = (T)res_i;
+        expected[i * 2 + 1] = (T)-res_r;
     }
 
-    __asm__ volatile("li a0, 8\n"
-                     "vsetvli a0, a0, e64, m1\n"
-                     "vle64.v v3, (%3)\n"
-                     "vle64.v v1, (%1)\n"
-                     "vle64.v v2, (%2)\n"
+    __asm__ volatile("mv a0, %3\n"
+                     "vsetvli a0, a0, " VSET_E ", m1\n"
+                     VLD_INS " v1, (%1)\n"
+                     VLD_INS " v2, (%2)\n"
+                     VLD_INS " v3, (%0)\n"
                      "vcfmaccpyl.vv v3, v1, v2\n"
-                     "vse64.v v3, (%0)\n"
-                     // Note that because we must commit the result to memory, the
-                     // speedup doesn't seem huge. However, main advantage of a
-                     // dedicated instruction is that it enables us to retain the result
-                     // in the register itself (saves us a load next time)
+                     VST_INS " v3, (%0)\n"
                      :
-                     : "r"(vd), "r"(vs1), "r"(vs2), "r"(vs3)
+                     : "r"(vd), "r"(vs1), "r"(vs2), "r"(N_ELE)
                      : "a0", "v1", "v2", "v3", "memory");
 
-    printf("vcfmaccpyl.vv Test:\n");
-    printf("Input vs1: ");
-    for (int i = 0; i < 8; i++) {
-        printf("%.2f ", vs1[i]);
-    }
-    printf("\n");
-    printf("Input vs2: ");
-    for (int i = 0; i < 8; i++) {
-        printf("%.2f ", vs2[i]);
-    }
-    printf("\n");
-    printf("Input vd:  ");
-    for (int i = 0; i < 8; i++) {
-        printf("%.2f ", vs3[i]);
-    }
-    printf("\n");
-    printf("Expected:  ");
-    for (int i = 0; i < 8; i++) {
-        printf("%.2f ", expected[i]);
-    }
-    printf("\n");
-    printf("Got:       ");
-    for (int i = 0; i < 8; i++) {
-        printf("%.2f ", vd[i]);
-    }
-    printf("\n");
-
+    printf("vcfmaccpyl.vv Test (VLEN=%d, ELEN=%d):\n", VLEN, ELEN);
     int pass = 1;
-    for (int i = 0; i < 8; i++) {
-        if (fabs(vd[i] - expected[i]) > 1e-6) {
+    for (int i = 0; i < N_ELE; i++) {
+        if (fabs((double)vd[i] - (double)expected[i]) > 1e-3) {
             pass = 0;
+            break;
         }
     }
     printf("Result: %s\n", pass ? "PASS" : "FAIL");

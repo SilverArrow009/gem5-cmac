@@ -1,58 +1,51 @@
 #include <stdio.h>
+#include "../common.h"
 
 int
 main()
 {
-    double vs1[8] __attribute__((aligned(64))) = {1.0, 2.0, 3.0, 4.0,
-                                                  5.0, 6.0, 7.0, 8.0};
-    double vs2[8] __attribute__((aligned(64))) = {1.0, 1.0, 2.0, 2.0,
-                                                  3.0, 3.0, 4.0, 4.0};
-    double vd[8] __attribute__((aligned(64))) = {0};
-    double expected[8];
+    T vs1[N_ELE] __attribute__((aligned(64)));
+    T vs2[N_ELE] __attribute__((aligned(64)));
+    T vd[N_ELE] __attribute__((aligned(64)));
+    T expected[N_ELE];
 
-    for (int i = 0; i < 4; i++) {
-        double a = vs1[i * 2], b = vs1[i * 2 + 1];
-        double c = vs2[i * 2], d = vs2[i * 2 + 1];
-        expected[i * 2] = a * c - b * d;
-        expected[i * 2 + 1] = a * d + b * c;
+    for (int i = 0; i < N_ELE; i++) {
+        vs1[i] = (T)(i + 1.0);
+        vs2[i] = (T)((i % 2 == 0) ? (i / 2 + 1.0) : 1.0);
+        vd[i] = (T)0.0;
     }
 
-    __asm__ volatile("li a0, 8\n"
-                     "vsetvli a0, a0, e64, m1\n"
-                     "vle64.v v1, (%1)\n"
-                     "vle64.v v2, (%2)\n"
+    for (int i = 0; i < N_ELE / 2; i++) {
+        double a = (double)vs1[i * 2];
+        double b = (double)vs1[i * 2 + 1];
+        double c = (double)vs2[i * 2];
+        double d = (double)vs2[i * 2 + 1];
+        expected[i * 2] = (T)(a * c - b * d);
+        expected[i * 2 + 1] = (T)(a * d + b * c);
+        printf("Debug: expected[%d]=%f, expected[%d]=%f\n", i*2, (double)expected[i*2], i*2+1, (double)expected[i*2+1]);
+    }
+
+    int n = N_ELE;
+    __asm__ volatile("mv a0, %3\n"
+                     "vsetvli a0, a0, " VSET_E ", m1\n"
+                     VLD_INS " v1, (%1)\n"
+                     VLD_INS " v2, (%2)\n"
                      "vcfmul.vv v3, v1, v2\n"
-                     "vse64.v v3, (%0)\n"
+                     VST_INS " v3, (%0)\n"
                      :
-                     : "r"(vd), "r"(vs1), "r"(vs2)
+                     : "r"(vd), "r"(vs1), "r"(vs2), "r"(n)
                      : "a0", "v1", "v2", "v3", "memory");
 
-    printf("vcfmul.vv Test:\n");
-    printf("Input vs1: ");
-    for (int i = 0; i < 8; i++) {
-        printf("%.2f ", vs1[i]);
-    }
-    printf("\n");
-    printf("Input vs2: ");
-    for (int i = 0; i < 8; i++) {
-        printf("%.2f ", vs2[i]);
-    }
-    printf("\n");
-    printf("Expected:  ");
-    for (int i = 0; i < 8; i++) {
-        printf("%.2f ", expected[i]);
-    }
-    printf("\n");
-    printf("Got:       ");
-    for (int i = 0; i < 8; i++) {
-        printf("%.2f ", vd[i]);
-    }
-    printf("\n");
-
+    printf("vcfmul.vv Test (VLEN=%d, ELEN=%d, N_ELE=%d)\n", VLEN, ELEN, (int)N_ELE);
     int pass = 1;
-    for (int i = 0; i < 8; i++) {
-        if (vd[i] != expected[i]) {
+    for (int i = 0; i < N_ELE; i++) {
+        if (fabs((double)vd[i] - (double)expected[i]) > 1e-2) {
             pass = 0;
+        }
+    }
+    if (!pass) {
+        for (int i = 0; i < N_ELE; i++) {
+            printf("[%d] Got %f, Expected %f\n", i, (double)vd[i], (double)expected[i]);
         }
     }
     printf("Result: %s\n", pass ? "PASS" : "FAIL");

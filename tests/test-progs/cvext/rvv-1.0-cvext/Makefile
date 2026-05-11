@@ -1,5 +1,7 @@
 CC = riscv64-unknown-elf-gcc
-CFLAGS = -O2 -march=rv64gcv_zfh -mabi=lp64d
+VLEN ?= 4096
+ELEN ?= 64
+CFLAGS = -march=rv64gcv_zfh -mabi=lp64d -DVLEN=$(VLEN) -DELEN=$(ELEN)
 
 .PHONY: all clean
 

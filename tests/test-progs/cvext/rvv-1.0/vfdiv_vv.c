@@ -1,81 +1,63 @@
-#include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include "../common.h"
 
-int
-main()
-{
-    double vs1[8] __attribute__((aligned(64))) = {4.0,  2.0,  6.0,  8.0,
-                                                  10.0, 12.0, 14.0, 16.0};
-    double vs2[8] __attribute__((aligned(64))) = {1.0, 1.0, 2.0, 2.0,
-                                                  3.0, 3.0, 4.0, 4.0};
-    double vd[8] __attribute__((aligned(64))) = {0};
-    double expected[8];
+int main() {
+    printf("vfdiv.vv (complex) Test | VLEN=%d, ELEN=%d\n", VLEN, ELEN);
+    T vs1[N_ELE] __attribute__((aligned(64)));
+    T vs2[N_ELE] __attribute__((aligned(64)));
+    T vd[N_ELE] __attribute__((aligned(64))) = {0};
+    T expected[N_ELE];
 
-    for (int i = 0; i < 4; i++) {
-        double a = vs1[i * 2], b = vs1[i * 2 + 1];
-        double c = vs2[i * 2], d = vs2[i * 2 + 1];
-        double denom = c * c + d * d;
-        expected[i * 2] = (a * c + b * d) / denom;
-        expected[i * 2 + 1] = (b * c - a * d) / denom;
+    for (int i = 0; i < N_ELE / 2; i++) {
+        vs1[2 * i] = (T)i + 2.0;     // c
+        vs1[2 * i + 1] = (T)i + 1.5; // d
+        vs2[2 * i] = (T)i + 5.0;     // a
+        vs2[2 * i + 1] = (T)i + 4.0; // b
+
+        T a = vs2[2 * i], b = vs2[2 * i + 1];
+        T c = vs1[2 * i], d = vs1[2 * i + 1];
+        T den = c * c + d * d;
+        expected[2 * i] = (a * c + b * d) / den;
+        expected[2 * i + 1] = (b * c - a * d) / den;
     }
 
-    /* Standard RVV 1.0 for complex division:
-     * (a+bi)/(c+di) = (ac+bd)/(c^2+d^2) + (bc-ad)i/(c^2+d^2)
-     */
-    __asm__ volatile("li a0, 4\n"
-                     "vsetvli a0, a0, e64, m1\n"
-                     "vlseg2e64.v v10, (%1)\n" // v10=re1, v11=im1
-                     "vlseg2e64.v v12, (%2)\n" // v12=re2, v13=im2
-
-                     // Denominator: re2*re2 + im2*im2
-                     "vfmul.vv v14, v12, v12\n"
-                     "vfmacc.vv v14, v13, v13\n"
-
-                     // Real numerator: re1*re2 + im1*im2
-                     "vfmul.vv v15, v10, v12\n"
-                     "vfmacc.vv v15, v11, v13\n"
-
-                     // Imag numerator: im1*re2 - re1*im2
-                     "vfmul.vv v16, v11, v12\n"
-                     "vfnmsac.vv v16, v10, v13\n"
-
-                     // Divide by denominator
-                     "vfdiv.vv v15, v15, v14\n"
-                     "vfdiv.vv v16, v16, v14\n"
-
-                     "vsseg2e64.v v15, (%0)\n"
-                     :
-                     : "r"(vd), "r"(vs1), "r"(vs2)
-                     : "a0", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "memory");
-
-    printf("vdiv.vv (complex) Test:\n");
-    printf("Input vs1: ");
-    for (int i = 0; i < 8; i++) {
-        printf("%.4f ", vs1[i]);
-    }
-    printf("\n");
-    printf("Input vs2: ");
-    for (int i = 0; i < 8; i++) {
-        printf("%.4f ", vs2[i]);
-    }
-    printf("\n");
-    printf("Expected:  ");
-    for (int i = 0; i < 8; i++) {
-        printf("%.4f ", expected[i]);
-    }
-    printf("\n");
-    printf("Got:       ");
-    for (int i = 0; i < 8; i++) {
-        printf("%.4f ", vd[i]);
-    }
-    printf("\n");
+    __asm__ volatile(
+        "li a0, %3\n"
+        "vsetvli t0, a0, " VSET_E ", m1, ta, ma\n"
+        VLD2_INS " v2, (%1)\n"  // v2=a, v3=b
+        VLD2_INS " v4, (%2)\n"  // v4=c, v5=d
+        "vfmul.vv v6, v4, v4\n" // c*c
+        "vfmacc.vv v6, v5, v5\n" // c*c + d*d
+        "vfmul.vv v8, v2, v4\n" // a*c
+        "vfmacc.vv v8, v3, v5\n" // a*c + b*d
+        "vfdiv.vv v0, v8, v6\n" // (a*c + b*d) / den
+        "vfmul.vv v9, v3, v4\n" // b*c
+        "vfnmsac.vv v9, v2, v5\n" // b*c - a*d
+        "vfdiv.vv v1, v9, v6\n" // (b*c - a*d) / den
+        VST2_INS " v0, (%0)\n"
+        :
+        : "r"(vd), "r"(vs2), "r"(vs1), "i"(N_ELE / 2)
+        : "t0", "a0", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v8", "v9"
+    );
 
     int pass = 1;
-    for (int i = 0; i < 8; i++) {
-        if (fabs(vd[i] - expected[i]) > 1e-6) {
+    for (int i = 0; i < N_ELE; i++) {
+        if (fabs((double)vd[i] - (double)expected[i]) > 1e-3) {
             pass = 0;
+            break;
         }
     }
+
     printf("Result: %s\n", pass ? "PASS" : "FAIL");
+    if (!pass) {
+        for (int i = 0; i < N_ELE / 2; i++) {
+            printf("Pair %d: Expected (%.4f, %.4f), Got (%.4f, %.4f)\n",
+                   i, (double)expected[2*i], (double)expected[2*i+1],
+                   (double)vd[2*i], (double)vd[2*i+1]);
+        }
+    }
+
     return pass ? 0 : 1;
 }
