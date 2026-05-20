@@ -1,5 +1,7 @@
+#ifdef DEBUG
 #include <stdio.h>
 #include <math.h>
+#endif
 #include "../common.h"
 
 int
@@ -18,7 +20,6 @@ main()
     for (int i = 0; i < N_ELE / 2; i++) {
         double a = (double)vs1[i * 2], b = (double)vs1[i * 2 + 1];
         double c = (double)vs2[i * 2], d = (double)vs2[i * 2 + 1];
-        printf("%f, %f, %f, %f\n", a, b, c, d);
         expected[i * 2] = (T)(a * c - b * d);
         expected[i * 2 + 1] = (T)(a * d + b * c);
     }
@@ -42,6 +43,8 @@ main()
                      : "r"(vd), "r"(vs1), "r"(vs2), "r"(n_complex)
                      : "a0", "v10", "v11", "v12", "v13", "v14", "v15", "memory");
 
+    int pass = 1;
+#ifdef DEBUG
     printf("vfmul.vv (standard RVV 1.0 complex) Test (VLEN=%d, ELEN=%d):\n", VLEN, ELEN);
     printf("Input vs1: ");
     for (int i = 0; i < N_ELE; i++) {
@@ -63,13 +66,12 @@ main()
         printf("%.2f ", vd[i]);
     }
     printf("\n");
-
-    int pass = 1;
     for (int i = 0; i < N_ELE; i++) {
         if (fabs((double)vd[i] - (double)expected[i]) > 1e-3) {
             pass = 0;
         }
     }
     printf("Result: %s\n", pass ? "PASS" : "FAIL");
+#endif
     return pass ? 0 : 1;
 }

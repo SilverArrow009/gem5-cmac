@@ -1,46 +1,11 @@
 #include <math.h>
+#ifdef DEBUG
 #include <stdio.h>
-#include <stdint.h>
-
-#ifndef VLEN
-#define VLEN 1024
 #endif
-
-#ifndef ELEN
-#define ELEN 64
-#endif
+#include "../common.h"
 
 // To keep it simple and ensure it fits in one vector:
 #define N (VLEN / (2 * ELEN))
-
-#if ELEN == 64
-typedef double T;
-#define VSET_E "e64"
-#define VLD_INS "vle64.v"
-#define VST_INS "vse64.v"
-#define LD_INS "fld"
-
-#elif ELEN == 32
-typedef float T;
-#define VSET_E "e32"
-#define VLD_INS "vle32.v"
-#define VST_INS "vse32.v"
-#define LD_INS "flw"
-
-#elif ELEN == 16
-typedef _Float16 T;
-#define VSET_E "e16"
-#define VLD_INS "vle16.v"
-#define VST_INS "vse16.v"
-#define LD_INS "flh"
-
-#elif ELEN == 8
-typedef int8_t T;
-#define VSET_E "e8"
-#define VLD_INS "vle8.v"
-#define VST_INS "vse8.v"
-#define LD_INS "lb"
-#endif
 
 int
 main()
@@ -112,6 +77,7 @@ main()
                        [ele_size] "i"(sizeof(T)), [ele_size_2] "i"(2 * sizeof(T))
                      : "a0", "a1", "a2", "a3", "a4", "a5", "a6", "v0", "v1", "v2", "v3", "f0", "f1", "memory");
 
+#ifdef DEBUG
     printf("%dx%d Complex Matrix Multiplication (VLEN=%d, ELEN=%d):\n", N, N, VLEN, ELEN);
     printf("Expected C:\n");
     for (int i = 0; i < N; i++) {
@@ -121,6 +87,7 @@ main()
         }
         printf("\n");
     }
+
     printf("\nGot C:\n");
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
@@ -129,6 +96,7 @@ main()
         }
         printf("\n");
     }
+#endif
 
     int pass = 1;
     for (int i = 0; i < N * N * 2; i++) {
@@ -136,6 +104,8 @@ main()
             pass = 0;
         }
     }
+#ifdef DEBUG
     printf("\nResult: %s\n", pass ? "PASS" : "FAIL");
+#endif
     return pass ? 0 : 1;
 }

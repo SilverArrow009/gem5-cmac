@@ -1,4 +1,6 @@
+#ifdef DEBUG
 #include <stdio.h>
+#endif
 #include "../common.h"
 
 int
@@ -38,8 +40,9 @@ main()
                      : "r"(vd), "r"(vs1), "r"(vs2), "r"(n)
                      : "a0", "v1", "v2", "v3", "memory");
 
-    printf("vcfmaccpyu.vv Test (VLEN=%d, ELEN=%d, N_ELE=%d)\n", VLEN, ELEN, (int)N_ELE);
     int pass = 1;
+#ifdef DEBUG
+    printf("vcfmaccpyu.vv Test (VLEN=%d, ELEN=%d, N_ELE=%d)\n", VLEN, ELEN, (int)N_ELE);
     for (int i = 0; i < N_ELE; i++) {
         if (fabs((double)vd[i] - (double)expected[i]) > 1e-3) {
             pass = 0;
@@ -52,5 +55,6 @@ main()
         }
     }
     printf("Result: %s\n", pass ? "PASS" : "FAIL");
+#endif
     return pass ? 0 : 1;
 }

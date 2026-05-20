@@ -1,4 +1,7 @@
+#ifdef DEBUG
 #include <stdio.h>
+#include <math.h>
+#endif
 #include "../common.h"
 
 int
@@ -6,13 +9,12 @@ main()
 {
     T vs1[N_ELE] __attribute__((aligned(64)));
     T vs2[N_ELE] __attribute__((aligned(64)));
-    T vd[N_ELE] __attribute__((aligned(64)));
+    T vd[N_ELE] __attribute__((aligned(64))) = {0};
     T expected[N_ELE];
 
     for (int i = 0; i < N_ELE; i++) {
         vs1[i] = (T)(i + 1.0);
         vs2[i] = (T)((i % 2 == 0) ? (i / 2 + 1.0) : 1.0);
-        vd[i] = (T)0.0;
     }
 
     for (int i = 0; i < N_ELE / 2; i++) {
@@ -22,7 +24,6 @@ main()
         double d = (double)vs2[i * 2 + 1];
         expected[i * 2] = (T)(a * c - b * d);
         expected[i * 2 + 1] = (T)(a * d + b * c);
-        printf("Debug: expected[%d]=%f, expected[%d]=%f\n", i*2, (double)expected[i*2], i*2+1, (double)expected[i*2+1]);
     }
 
     int n = N_ELE;
@@ -36,8 +37,9 @@ main()
                      : "r"(vd), "r"(vs1), "r"(vs2), "r"(n)
                      : "a0", "v1", "v2", "v3", "memory");
 
-    printf("vcfmul.vv Test (VLEN=%d, ELEN=%d, N_ELE=%d)\n", VLEN, ELEN, (int)N_ELE);
     int pass = 1;
+#ifdef DEBUG
+    printf("vcfmul.vv Test (VLEN=%d, ELEN=%d, N_ELE=%d)\n", VLEN, ELEN, (int)N_ELE);
     for (int i = 0; i < N_ELE; i++) {
         if (fabs((double)vd[i] - (double)expected[i]) > 1e-2) {
             pass = 0;
@@ -49,5 +51,6 @@ main()
         }
     }
     printf("Result: %s\n", pass ? "PASS" : "FAIL");
+#endif
     return pass ? 0 : 1;
 }

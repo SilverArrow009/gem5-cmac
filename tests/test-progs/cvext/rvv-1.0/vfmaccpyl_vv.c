@@ -1,10 +1,10 @@
+#ifdef DEBUG
 #include <stdio.h>
-#include <stdlib.h>
 #include <math.h>
+#endif
 #include "../common.h"
 
 int main() {
-    printf("vfmaccpyl.vv (complex) Test | VLEN=%d, ELEN=%d\n", VLEN, ELEN);
     T vs1[N_ELE] __attribute__((aligned(64)));
     T vs2[N_ELE] __attribute__((aligned(64)));
     T vd[N_ELE] __attribute__((aligned(64)));
@@ -56,6 +56,8 @@ int main() {
         }
     }
 
+#ifdef DEBUG
+    printf("vfmaccpyl.vv (complex) Test | VLEN=%d, ELEN=%d\n", VLEN, ELEN);
     printf("Result: %s\n", pass ? "PASS" : "FAIL");
     if (!pass) {
         for (int i = 0; i < N_ELE / 2; i++) {
@@ -64,6 +66,6 @@ int main() {
                    (double)vd[2*i], (double)vd[2*i+1]);
         }
     }
-
+#endif
     return pass ? 0 : 1;
 }

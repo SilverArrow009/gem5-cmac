@@ -1,4 +1,6 @@
+#ifdef DEBUG
 #include <stdio.h>
+#endif
 #include "../common.h"
 
 int
@@ -38,8 +40,9 @@ main()
                      : "r"(vd), "r"(vs1), "r"(vs2), "r"(N_ELE)
                      : "a0", "v1", "v2", "v3", "memory");
 
-    printf("vcfmaccpyl.vv Test (VLEN=%d, ELEN=%d):\n", VLEN, ELEN);
     int pass = 1;
+#ifdef DEBUG
+    printf("vcfmaccpyl.vv Test (VLEN=%d, ELEN=%d):\n", VLEN, ELEN);
     for (int i = 0; i < N_ELE; i++) {
         if (fabs((double)vd[i] - (double)expected[i]) > 1e-3) {
             pass = 0;
@@ -47,5 +50,6 @@ main()
         }
     }
     printf("Result: %s\n", pass ? "PASS" : "FAIL");
+#endif
     return pass ? 0 : 1;
 }

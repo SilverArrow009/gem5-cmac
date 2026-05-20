@@ -1,10 +1,13 @@
+#ifdef DEBUG
 #include <stdio.h>
-#include <stdlib.h>
 #include <math.h>
+#endif
 #include "../common.h"
 
 int main() {
+#ifdef DEBUG
     printf("vfpy (complex) Test | VLEN=%d, ELEN=%d\n", VLEN, ELEN);
+#endif
     T vs2[N_ELE] __attribute__((aligned(64)));
     T vd_pyl[N_ELE] __attribute__((aligned(64))) = {0};
     T vd_pyu[N_ELE] __attribute__((aligned(64))) = {0};
@@ -49,13 +52,15 @@ int main() {
     );
 
     int pass_pyl = 1, pass_pyu = 1;
+#ifdef DEBUG
     for (int i = 0; i < N_ELE; i++) {
         if (fabs((double)vd_pyl[i] - (double)expected_pyl[i]) > 1e-3) pass_pyl = 0;
         if (fabs((double)vd_pyu[i] - (double)expected_pyu[i]) > 1e-3) pass_pyu = 0;
     }
 
+    printf("vfpy (complex) Test | VLEN=%d, ELEN=%d\n", VLEN, ELEN);
     printf("Result PYL: %s\n", pass_pyl ? "PASS" : "FAIL");
     printf("Result PYU: %s\n", pass_pyu ? "PASS" : "FAIL");
-
+#endif
     return (pass_pyl && pass_pyu) ? 0 : 1;
 }

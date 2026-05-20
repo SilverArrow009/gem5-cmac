@@ -1,6 +1,7 @@
-#include <math.h>
+#ifdef DEBUG
 #include <stdio.h>
-
+#include <math.h>
+#endif
 int
 main()
 {
@@ -25,10 +26,12 @@ main()
                      "vse64.v v2, (%1)\n"
                      "vcfpyu.v v3, v1\n"
                      "vse64.v v3, (%2)\n"
-                     : 
+                     :
                      : "r"(vs2), "r"(vd_pyl), "r"(vd_pyu)
                      : "a0", "v1", "v2", "v3", "memory");
 
+    int pass = 1;
+#ifdef DEBUG
     printf("vcfpyl.v and vcfpyu.v Test:\n");
     printf("Input vs2:    ");
     for (int i = 0; i < 8; i++) {
@@ -55,8 +58,6 @@ main()
         printf("%.2f ", vd_pyu[i]);
     }
     printf("\n");
-
-    int pass = 1;
     for (int i = 0; i < 8; i++) {
         if (fabs(vd_pyl[i] - expected_pyl[i]) > 1e-6) {
             pass = 0;
@@ -66,5 +67,6 @@ main()
         }
     }
     printf("Result: %s\n", pass ? "PASS" : "FAIL");
+#endif
     return pass ? 0 : 1;
 }

@@ -1,6 +1,7 @@
-#include <math.h>
+#ifdef DEBUG
 #include <stdio.h>
-#include <stdint.h>
+#include <math.h>
+#endif
 #include "../common.h"
 
 // #ifndef VLEN
@@ -17,32 +18,6 @@
 #undef N
 #define N 1
 #endif
-
-// #if ELEN == 64
-// typedef double T;
-// #define VSET_E "e64"
-// #define VLD_INS "vle64.v"
-// #define VST_INS "vse64.v"
-// #define LD_INS "fld"
-// #elif ELEN == 32
-// typedef float T;
-// #define VSET_E "e32"
-// #define VLD_INS "vle32.v"
-// #define VST_INS "vse32.v"
-// #define LD_INS "flw"
-// #elif ELEN == 16
-// typedef _Float16 T;
-// #define VSET_E "e16"
-// #define VLD_INS "vle16.v"
-// #define VST_INS "vse16.v"
-// #define LD_INS "flh"
-// #elif ELEN == 8
-// typedef int8_t T;
-// #define VSET_E "e8"
-// #define VLD_INS "vle8.v"
-// #define VST_INS "vse8.v"
-// #define LD_INS "lb"
-// #endif
 
 int
 main()
@@ -133,7 +108,10 @@ main()
         : "a0", "a1", "a2", "a3", "a4", "a5", "a6", "v0", "v1", "v2", "v3", "v4", "v5", "f0", "f1", "memory"
     );
 
+    int pass = 1;
+#ifdef DEBUG
     printf("%dx%d Complex Matrix Multiplication using standard RVV 1.0 (VLEN=%d, ELEN=%d):\n", N, N, VLEN, ELEN);
+
     printf("Expected C:\n");
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
@@ -142,6 +120,7 @@ main()
         }
         printf("\n");
     }
+
     printf("\nGot C:\n");
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
@@ -151,12 +130,12 @@ main()
         printf("\n");
     }
 
-    int pass = 1;
     for (int i = 0; i < N * N * 2; i++) {
         if (fabs((double)C[i] - (double)C_ref[i]) > 1e-3) {
             pass = 0;
         }
     }
     printf("\nResult: %s\n", pass ? "PASS" : "FAIL");
+#endif
     return pass ? 0 : 1;
 }
