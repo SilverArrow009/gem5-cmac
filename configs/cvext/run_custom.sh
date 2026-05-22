@@ -13,8 +13,7 @@ OUT_BASE="m5out/custom"
 mkdir -p $OUT_BASE
 
 # List of kernels to run
-# KERNELS=("vcfmul_vv" "vcfmul_vf" "vcfdiv_vv" "vcfdiv_vf" "vcfmadd_vv" "vcfmadd_vf" "vcfmacc_vv" "vcfmacc_vf" "vcfmsac_vv" "vcfmsac_vf" "vcfmaccpyl_vv" "vcfmaccpyl_vf" "vcfmaccpyu_vv" "vcfmaccpyu_vf" "vcfpy" "matrix_mult")
-KERNELS=("matrix_mult")
+KERNELS=("vcfmul_vv" "vcfmul_vf" "vcfdiv_vv" "vcfdiv_vf" "vcfmadd_vv" "vcfmadd_vf" "vcfmacc_vv" "vcfmacc_vf" "vcfmsac_vv" "vcfmsac_vf" "vcfmaccpyl_vv" "vcfmaccpyl_vf" "vcfmaccpyu_vv" "vcfmaccpyu_vf" "vcfpy" "matrix_mult")
 
 for vlen in "${VLEN[@]}"; do
     for elen in "${ELEN[@]}"; do
@@ -23,7 +22,7 @@ for vlen in "${VLEN[@]}"; do
             if [ -f "$KERNEL_DIR/$kernel" ]; then
                 echo "------------------------------------------------"
                 echo "Running $kernel with VLEN=$vlen, ELEN=$elen on Custom Model..."
-                $GEM5_BIN -re --outdir="$OUT_BASE/${kernel}_${vlen}_${elen}" $CONFIG --vlen=$VLEN --elen=$ELEN "$KERNEL_DIR/$kernel"
+                $GEM5_BIN -re --outdir="$OUT_BASE/${kernel}_${vlen}_${elen}" $CONFIG --vlen=$vlen --elen=$elen "$KERNEL_DIR/$kernel"
             else
                 echo "Warning: Kernel $kernel not found in $KERNEL_DIR"
             fi

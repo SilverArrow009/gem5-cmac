@@ -124,7 +124,6 @@ class Ara_SimdIntAluFU(MinorFU):
                 "SimdExt",
                 "SimdConfig",
                 "SimdShift",
-                "SimdMisc",
                 "SimdAddAcc",
                 "SimdReduceAdd",
                 "SimdReduceAlu",
@@ -141,17 +140,13 @@ class Ara_SimdIntAluFU(MinorFU):
                 description="Vector Reductions (Sum)",
                 # 6 (Transfer) + reduction_penalty = 6 + reduction_penalty
                 # extraAssumedLat = reduction_penalty - 1 (since opLat=7)
-                opClasses=minorMakeOpClassSet(["SimdReduceAdd"]),
+                opClasses=minorMakeOpClassSet(
+                    ["SimdReduceAdd", "SimdReduceCmp", "SimdReduceAlu"]
+                ),
                 srcRegsRelativeLats=[2],
                 extraAssumedLat=reduction_penalty - 1,
             )
         ]
-        # We map permutations (vrgather) and slides to SimdMisc.
-        # ARA has a giant barrel shifter so the shifting is independent of positions
-        # Gather and shifting take 1 cycle each.
-        # Base (2) + 4 (Transfer) + 1 (Slide) = 7 cycles
-        # Note on Masked ALU: gem5 does not currently separate Masked vs Unmasked ALU operations
-        # into distinct Python opClasses (essentially, all masked instrucitons are handled by SimdMisc).
 
 
 class Ara_SimdIntMulFU(MinorFU):
@@ -199,7 +194,6 @@ class Ara_SimdFloatALUFU(MinorFU):
                 "SimdFloatCvt",
                 "SimdFloatReduceAdd",
                 "SimdFloatReduceCmp",
-                "SimdFloatMisc",
                 "SimdFloatExt",
             ]
         )
@@ -265,53 +259,120 @@ class Ara_SimdFloatDivFU(MinorFU):
 class Ara_MemStridedFU(MinorFU):
     """Handles vector memory operations (Unit-stride, Strided)."""
 
-    # Base Mem Issue = 2 cycles.
-    # Penalty +0 (Load/Store) + 4 (Transfer) = 6 cycles base
-    opClasses = minorMakeOpClassSet(
-        [
-            "SimdUnitStrideLoad",
-            "SimdUnitStrideStore",
-            "SimdUnitStrideMaskLoad",
-            "SimdUnitStrideMaskStore",
-            "SimdStridedLoad",
-            "SimdStridedStore",
-            "SimdUnitStrideFaultOnlyFirstLoad",
-            "SimdWholeRegisterLoad",
-            "SimdWholeRegisterStore",
-            "SimdUnitStrideSegmentedLoad",
-            "SimdUnitStrideSegmentedStore",
-            "SimdStrideSegmentedLoad",
-            "SimdStrideSegmentedStore",
-            "SimdUnitStrideSegmentedFaultOnlyFirstLoad",
-        ]
-    )
-    opLat = 6
-    issueLat = 1
-    timings = [
-        MinorFUTiming(
-            description="Vector Strided Mem",
-            # Base (2) + 4 (Transfer) + 1 (Stride Penalty) = 7
-            opClasses=minorMakeOpClassSet(
-                ["SimdStridedLoad", "SimdStridedStore"]
-            ),
-            srcRegsRelativeLats=[1],
-            extraAssumedLat=1,
+    # Model the inteconnect penalties from the AXI bridge
+    # Maximum size of a single AXI burst is 4KB. This is well above the theoretical maximum
+    # required for the worst case transfer in our case (max VLEN=4096, 8 register segmented burst)
+    # So, for strided case, a single burst will (mostly) be able to service our read and write requests
+    # for small strides.
+    # Ara has a (configurable) AXI width of 1024. This means for most cases, each load/store is likely
+    # max(1, VLEN/1024) beats long. assuming the valid-ready handshake takes at most 1 cycle, the total penalty then is,
+    def __init__(self, vlen, elen):
+        super().__init__()
+        # Unit/strided load = max(1, VLEN/1024) + 1
+        # Unit/strided segmented load = max(1, VLEN/1024) * 8 + 1
+        axi_penalty_strided = math.ceil(vlen / 1024) + 1
+        axi_penalty_segmented = (
+            axi_penalty_strided + math.ceil(vlen / 1024) * 7
         )
-    ]
+        # Base Mem Issue = 2 cycles.
+        # Penalty + 0 (Load/Store) + 4 (Transfer) = 6 cycles base
+        self.opClasses = minorMakeOpClassSet(
+            [
+                "SimdUnitStrideLoad",
+                "SimdUnitStrideStore",
+                "SimdUnitStrideMaskLoad",
+                "SimdUnitStrideMaskStore",
+                "SimdUnitStrideFaultOnlyFirstLoad",
+                "SimdWholeRegisterLoad",
+                "SimdWholeRegisterStore",
+                "SimdUnitStrideSegmentedFaultOnlyFirstLoad",
+                "SimdStridedLoad",
+                "SimdStridedStore",
+                "SimdUnitStrideSegmentedLoad",
+                "SimdUnitStrideSegmentedStore",
+                "SimdStrideSegmentedLoad",
+                "SimdStrideSegmentedStore",
+            ]
+        )
+        self.opLat = 6
+        self.issueLat = 1
+        self.timings = [
+            MinorFUTiming(
+                description="Vector Strided Segmented Mem",
+                # These are segmented loads that involve the loading data into multiple vector registers
+                # Largest stride segmented operation supported is for  8 regs
+                # may be filled in tandem for a binary operation. Hence, the penalty is,
+                # Base (2) + 4 (Transfer) + 1 (Stride Penalty) * 8 = 14
+                opClasses=minorMakeOpClassSet(
+                    [
+                        "SimdUnitStrideSegmentedLoad",
+                        "SimdUnitStrideSegmentedStore",
+                        "SimdStrideSegmentedLoad",
+                        "SimdStrideSegmentedStore",
+                    ]
+                ),
+                srcRegsRelativeLats=[1],
+                extraAssumedLat=8 + axi_penalty_segmented,
+            ),
+            MinorFUTiming(
+                description="Vector Strided Mem",
+                # same as Unit stride, except calculaitng the stride addresses takes one more cycle
+                # Base (2) + 4 (Transfer) + 1 (Stride Penalty) = 7
+                opClasses=minorMakeOpClassSet(
+                    [
+                        "SimdStridedLoad",
+                        "SimdStridedStore",
+                    ]
+                ),
+                srcRegsRelativeLats=[1],
+                extraAssumedLat=1 + axi_penalty_strided,
+            ),
+            MinorFUTiming(
+                description="Vector Strided Mem",
+                # Unit stride, so no penalty
+                # Base (2) + 4 (Transfer) + 0 (Stride Penalty) = 6
+                opClasses=minorMakeOpClassSet(
+                    [
+                        "SimdUnitStrideLoad",
+                        "SimdUnitStrideStore",
+                        "SimdUnitStrideMaskLoad",
+                        "SimdUnitStrideMaskStore",
+                        "SimdUnitStrideFaultOnlyFirstLoad",
+                        "SimdWholeRegisterLoad",
+                        "SimdWholeRegisterStore",
+                        "SimdUnitStrideSegmentedFaultOnlyFirstLoad",
+                    ]
+                ),
+                srcRegsRelativeLats=[1],
+                extraAssumedLat=axi_penalty_strided,
+            ),
+        ]
 
 
 class Ara_MemIndexededFU(MinorFU):
     """Handles vector memory operations (Indexed)."""
 
+    # SimdMisc operations vary WILDLY in the execution time. The model maynot be accurate here
+    # For example, vfmerge.vvm and vrgather.vv have vastly different execution times for Ara
+    # since vrgather incorporates the memory and interconnect overheads
+
+    # We map permutations (vrgather) and slides to SimdMisc.
+    # ARA has a giant barrel shifter so the shifting is independent of positions
+    # Gather and shifting take 1 cycle each.
+    # Base (2) + 4 (Transfer) + 1 (Slide) = 7 cycles
+    # Note on Masked ALU: gem5 does not currently separate Masked vs Unmasked ALU operations
+    # into distinct Python opClasses (essentially, all masked instrucitons are handled by SimdMisc).
     def __init__(self, vlen, elen):
         super().__init__()
+        # Gather/indexed load = (1 (one read/write request, always within 1 beat) + 1 (axi-handshake overhead)) * (vlen/elen)
+        axi_penalty_gather = (1 + 1) * (vlen / elen)
         # Base Mem Issue = 2 cycles.
         # Indexed mem acts like a permutation (gather/scatter).
-        # We apply the permutation penalty: Base (2) + 4 (Transfer) + (VLEN/ELEN)
+        # We apply the permutation penalty: Base (2) + 4 (Transfer) + (VLEN/EEN)
         self.opClasses = minorMakeOpClassSet(
-            ["SimdIndexedLoad", "SimdIndexedStore"]
+            ["SimdIndexedLoad", "SimdIndexedStore", "SimdMisc"]
         )
-        self.opLat = 6 + int(vlen / elen)
+        self.opLat = 6 + int(vlen / elen) + axi_penalty_gather
         self.issueLat = 1
 
 
@@ -333,7 +394,7 @@ class UnifiedCVA6AraFUPool(MinorFUPool):
             Ara_SimdFloatALUFU(vlen, elen),
             Ara_SimdFloatMulFU(),
             Ara_SimdFloatDivFU(),
-            Ara_MemStridedFU(),
+            Ara_MemStridedFU(vlen, elen),
             Ara_MemIndexededFU(vlen, elen),
         ]
 
